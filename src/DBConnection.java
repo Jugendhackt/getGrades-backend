@@ -13,11 +13,11 @@ public class DBConnection {
 
     private DBConnection() {
         try {
-            String[] info = new String(Files.readAllBytes(Paths.get(infoFile))).split("\n");
+            String[] info = new String(Files.readAllBytes(Paths.get(infoFile))).split(";");
             Class.forName("com.mysql.jdbc.Driver");
             Connection connection = DriverManager.getConnection("jdbc:mysql://" + info[0] + ":3306/notenverwaltung", info[1], info[2]);
-            Statement statement = connection.createStatement();
-            ResultSet set = statement.executeQuery("SELECT `text` FROM `test`");
+            PreparedStatement statement = connection.prepareStatement("SELECT `text` FROM `test`");
+            ResultSet set = statement.executeQuery();
             printResult(set);
         } catch (Exception e) {
             e.printStackTrace();

@@ -1,14 +1,14 @@
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 public class Main {
 
     public static void main(String[] args) {
-        Map<String, Integer> map = new HashMap<>();
-        map.put("Collin", 18);
-        map.put("Timo", 17);
-
-        System.out.println(map.get("Timo"));
+        Map<String, String> map = new HashMap<>();
+        map.put("Collin", "Alpert");
+        System.out.println(map.get("Hallo") == null);
     }
 }
