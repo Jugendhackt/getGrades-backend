@@ -1,11 +1,13 @@
 import com.sun.net.httpserver.*;
+import org.json.simple.JSONObject;
 
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.sql.*;
+import java.util.*;
 
 public class HTTPServer {
     public static void main(String[] args) {
@@ -54,10 +56,39 @@ public class HTTPServer {
 
     private static class GetGradesHandler implements HttpHandler {
 
-        @Override
-        public void handle(HttpExchange exchange) throws IOException {
-
-        }
+      @Override
+      public void handle(HttpExchange exchange) throws IOException {
+				String[] info = new String(Files.readAllBytes(Paths.get("res/password.txt"))).split(";");
+	
+				String studentId = queryToMap(exchange.getRequestURI().getQuery()).get("studentId");
+				System.out.println(studentId);
+				try {
+					Connection connection = DriverManager.getConnection("jdbc:mysql://" + info[0] + ":3306/notenverwaltung", info[1], info[2]);
+					
+					//SQL Query
+					PreparedStatement statement = connection.prepareStatement("SELECT val, testId FROM grades WHERE studentId=?");
+					statement.setString(1, studentId);
+					ResultSet resultSet = statement.executeQuery();
+					
+					//Reult to JSONObject
+					JSONObject grades = new JSONObject();
+					while (resultSet.next()) {
+						grades.put(resultSet.getString("testId"), resultSet.getInt("val"));
+					}
+					
+					//Result to Map
+					HashMap<String, Integer> vals = new HashMap<>();
+					while (resultSet.next()) {
+						vals.put(resultSet.getString("testId"), resultSet.getInt("val"));
+					}
+					
+					//Structure: TestId, Note vom Test
+					write(grades.toJSONString(), exchange);
+				} catch (SQLException e) {
+					e.printStackTrace();
+				}
+	
+			}
     }
 
     private static class GetSubjectsHandler implements HttpHandler {
@@ -77,7 +108,7 @@ public class HTTPServer {
     }
 
     private static void write(String text, HttpExchange e) throws IOException {
-        e.getResponseHeaders().add("Content-Type", "text/plain; charset=utf-8");
+        e.getResponseHeaders().add("Content-Type", "application/json; charset=utf-8");
         e.sendResponseHeaders(200, 0);
         OutputStream os = e.getResponseBody();
         os.write(text.getBytes("UTF-8"));
@@ -92,4 +123,5 @@ public class HTTPServer {
         }
         return map;
     }
+    
 }

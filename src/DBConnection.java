@@ -13,7 +13,7 @@ public class DBConnection {
 
     private DBConnection() {
         try {
-            String[] info = new String(Files.readAllBytes(Paths.get(infoFile))).split("\n");
+            String[] info = new String(Files.readAllBytes(Paths.get(infoFile))).split(";");
             Class.forName("com.mysql.jdbc.Driver");
             Connection connection = DriverManager.getConnection("jdbc:mysql://" + info[0] + ":3306/notenverwaltung", info[1], info[2]);
             Statement statement = connection.createStatement();
