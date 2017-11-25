@@ -38,6 +38,7 @@ public class HTTPServer {
             server.createContext("/getuserdata", new GetUserDataHandler());
             server.createContext("/getclassdata", new GetClassDataHandler());
             server.createContext("/getclasssubjects", new GetClassSubjectsHandler());
+            server.createContext("/updategrades", new updateGradesHandler());
             System.out.println("Server wird gestartet...");
             server.setExecutor(null);
             server.start();
@@ -237,6 +238,43 @@ public class HTTPServer {
               e.printStackTrace();
             }
         }
+    }
+
+    private static class updateGradesHandler implements HttpHandler {
+
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+                String query = exchange.getRequestURI().getQuery();
+                HashMap<String, String> data = queryToMap(query);
+                String gradeID = data.get("gradeId");
+                String teacherID = data.get("teacherId");
+                String value = data.get("value");
+                JSONObject obj = new JSONObject();
+                try {
+                    final String infoFile = "res/password.txt";
+                    String[] info = new String(Files.readAllBytes(Paths.get(infoFile))).split(";");
+                    Class.forName("com.mysql.jdbc.Driver");
+                    Connection connection = DriverManager.getConnection("jdbc:mysql://10.23.41.229:3306/notenverwaltung", "notenadmin", info[2]);
+                    PreparedStatement statement = connection.prepareStatement("UPDATE grades " +
+                            "LEFT JOIN tests ON grades.testId=tests.Id " +
+                            "LEFT JOIN users ON tests.lehrerId = users.id " +
+                            "SET grades.val = ? " +
+                            "WHERE users.id = ? AND grades.id = ?");
+                    statement.setString(1, value);
+                    statement.setString(2, teacherID);
+                    statement.setString(3, gradeID);
+                    int result = statement.executeUpdate();
+
+                    obj.put("Success", result>0);
+
+                    write(obj.toJSONString(), 200, exchange);
+                }
+                catch (Exception e){
+                    e.printStackTrace();
+                }
+            }
+
+
     }
 
 	private static class GetClassDataHandler implements HttpHandler {
