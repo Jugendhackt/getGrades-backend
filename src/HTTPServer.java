@@ -78,7 +78,7 @@ public class HTTPServer {
                 obj.put("password", username);
                 obj.put("success", resultSet.next());
 
-                write(obj.toJSONString(), 200, exchange);
+              write(obj.toJSONString(), 200, exchange);
             }
             catch (Exception e){
                 e.printStackTrace();
@@ -124,25 +124,18 @@ public class HTTPServer {
                 Statement statement = connection.createStatement();
                 ResultSet set = statement.executeQuery("SELECT name FROM users");
                 System.out.println(set);
-              ResultSetMetaData rsmd = set.getMetaData();
-              int columnsNumber = rsmd.getColumnCount();
+
               while (set.next()) {
-                for (int i = 1; i <= columnsNumber; i++) {
-                  if (i > 1) System.out.print(",  ");
-
-                  columnValue.append(set.getString(i));
-
-                }
-
+                columnValue.append(set.getString(1) + " ");
               }
-              if(set.next()) {
-                write(columnValue.toString(), exchange, 200);
+              if(set.next()){
+                write(columnValue, 200, exchange);
+              } else {
+                write(columnValue, 401, exchange);
               }
-              else {
-                write(columnValue.toString(), exchange, 401);
-              }
+              System.out.println(columnValue);
             } catch (Exception e) {
-                e.printStackTrace();
+              e.printStackTrace();
             }
         }
     }
