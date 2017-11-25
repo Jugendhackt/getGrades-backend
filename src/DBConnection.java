@@ -13,12 +13,22 @@ public class DBConnection {
 
     private DBConnection() {
         try {
-            String[] info = new String(Files.readAllBytes(Paths.get(infoFile))).split("\n");
+            String[] info = new String(Files.readAllBytes(Paths.get(infoFile))).split(";");
             Class.forName("com.mysql.jdbc.Driver");
-            Connection connection = DriverManager.getConnection("jdbc:mysql://" + info[0] + ":3306/notenverwaltung", info[1], info[2]);
-            Statement statement = connection.createStatement();
-            ResultSet set = statement.executeQuery("SELECT `text` FROM `test`");
-            printResult(set);
+            Connection connection = DriverManager.getConnection("jdbc:mysql://10.23.41.229:3306/notenverwaltung", "notenadmin", info[2]);
+
+            String username = "hans";
+            String pwd = "123456789";
+
+
+            PreparedStatement statement = connection.prepareStatement("SELECT * FROM users WHERE users.name = ? AND users.pwd = ?");
+            statement.setString(1, username);
+            statement.setString(2, pwd);
+
+            ResultSet resultSet = statement.executeQuery();
+            Boolean ret = resultSet.next();
+
+            System.out.println(ret);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -27,7 +37,7 @@ public class DBConnection {
 
     private void printResult(ResultSet set) throws SQLException {
         while (set.next()) {
-            String text = set.getString("text");
+            String text = set.getString("pwd");
             System.out.println(text);
         }
     }
