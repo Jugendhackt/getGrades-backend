@@ -70,13 +70,17 @@ public class HTTPServer {
                 statement.setString(2, password);
                 ResultSet resultSet = statement.executeQuery();
 
+
                 obj.put("username", username);
                 obj.put("password", password);
                // obj.put("success", resultSet.next());
                 if(resultSet.next()){
+                    String group = resultSet.getString("name");
+                    obj.put("groupid",group);
                     write(obj.toJSONString(),200, exchange);
                 }
                 else{
+                    obj.put("goupid", "" );
                     write(obj.toJSONString(),401, exchange);
                 }
             }
