@@ -72,22 +72,20 @@ public class HTTPServer {
                 int size = 0;
                 while (resultSet.next()) size++;
                 JSONObject responseObject = new JSONObject();
-                boolean isValid = false;
+                responseObject.put("name", null);
+                responseObject.put("groupId", null);
+                responseObject.put("response", false);
                 if (nullOrEmpty(username) || nullOrEmpty(password) || size == 0) {
-                    responseObject.put("name", null);
-                    responseObject.put("groupId", null);
-                    responseObject.put("response", false);
+                    write(responseObject.toJSONString(), 401, exchange);
                 } else {
-                    System.out.println(size);
                     while (resultSet.next()) {
                         responseObject.put("name", resultSet.getString("name"));
                         responseObject.put("groupId", resultSet.getString("groupId"));
                         responseObject.put("response", true);
                         System.out.println(responseObject);
                     }
-                    isValid = true;
+                    write(responseObject.toJSONString(), 200, exchange);
                 }
-                write(responseObject.toJSONString(), isValid ? 200 : 400, exchange);
             }
             catch (Exception e){
                 e.printStackTrace();
@@ -151,7 +149,7 @@ public class HTTPServer {
 						//Structure: TestId, Note vom Test
 						write(grades.toJSONString(), 200, exchange);
 					} else {
-						write("[\"Nothing to see here\"]", 404, exchange);
+						write("{\"response:Nothing to see here\"]", 404, exchange);
 					}
 				} catch (SQLException e) {
 					e.printStackTrace();
@@ -164,13 +162,9 @@ public class HTTPServer {
 
   	  @Override
 			public void handle(HttpExchange exchange) throws IOException {
-				String[] info = new String(Files.readAllBytes(Paths.get("res/password.txt"))).split(";");
-
 				String classId = queryToMap(exchange.getRequestURI().getQuery()).get("classId");
   	  	try {
   	  		//httpquery: ...?classId=class
-					Connection connection = DriverManager.getConnection("jdbc:mysql://" + info[0] + ":3306/notenverwaltung", info[1], info[2]);
-
 					//Result to JSONObject
 					PreparedStatement statement = connection.prepareStatement("SELECT subjects.name FROM relationshipsTeacher LEFT JOIN subjects ON relationshipsTeacher.fachId = subjects.id WHERE klassenId = ?");
 					statement.setString(1, classId);
