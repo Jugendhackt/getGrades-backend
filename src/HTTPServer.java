@@ -14,10 +14,20 @@ import java.util.LinkedHashMap;
 
 public class HTTPServer {
 
-    private final static String infoFile = "res/password.txt";
+    private final String infoFile = "res/password.txt";//this.getClass().getResource("/password.txt").getPath();
+    private static Connection connection = null;
 
     public static void main(String[] args) {
+        new HTTPServer();
+    }
+
+    private HTTPServer() {
         try {
+            System.out.println(infoFile);
+            String[] info = new String(Files.readAllBytes(Paths.get(infoFile))).split(";");
+            Class.forName("com.mysql.jdbc.Driver");
+            connection = DriverManager.getConnection("jdbc:mysql://" + info[0] + ":3306/notenverwaltung", info[1], info[2]);
+
             HttpServer server = HttpServer.create(new InetSocketAddress(1337), 0);
             server.createContext("/", new Handler());
             server.createContext("/login", new LoginHandler());
@@ -29,7 +39,7 @@ public class HTTPServer {
             server.setExecutor(null);
             server.start();
             System.out.println("Server ist betriebsbereit");
-        } catch (IOException e) {
+        } catch (IOException | ClassNotFoundException | SQLException e) {
             e.printStackTrace();
         }
     }
@@ -38,9 +48,7 @@ public class HTTPServer {
 
         @Override
         public void handle(HttpExchange exchange) throws IOException {
-            String query = exchange.getRequestURI().getQuery();
-            write(query, 200, exchange);
-
+            write("Wohoo!", 200, exchange);
         }
     }
 
@@ -56,11 +64,6 @@ public class HTTPServer {
             JSONObject obj = new JSONObject();
 
             try {
-                final String infoFile = "res/password.txt";
-                String[] info = new String(Files.readAllBytes(Paths.get(infoFile))).split(";");
-                Class.forName("com.mysql.jdbc.Driver");
-                Connection connection = DriverManager.getConnection("jdbc:mysql://10.23.41.229:3306/notenverwaltung", "notenadmin", info[2]);
-
                 PreparedStatement statement = connection.prepareStatement("SELECT * FROM users WHERE users.name = ? AND users.pwd = ?");
                 statement.setString(1, username);
                 statement.setString(2, password);
@@ -90,9 +93,6 @@ public class HTTPServer {
             String query = exchange.getRequestURI().getQuery();
             HashMap<String, String> map = queryToMap(query);
             try {
-                String[] info = new String(Files.readAllBytes(Paths.get(infoFile))).split(";");
-                Class.forName("com.mysql.jdbc.Driver");
-                Connection connection = DriverManager.getConnection("jdbc:mysql://" + info[0] + ":3306/notenverwaltung", info[1], info[2]);
                 PreparedStatement statement = connection.prepareStatement("SELECT email FROM users WHERE email = ?");
                 statement.setString(1, map.get("email"));
                 ResultSet set = statement.executeQuery();
@@ -103,8 +103,8 @@ public class HTTPServer {
                 String email = map.get("email");
                 if (exists(set)) {
                     write("{\"error\": \"Dieser Benutzer ist schon vorhanden\"}", 401, exchange);
-                } else if (nullOrEmpty(name) || nullOrEmpty(password) || nullOrEmpty(group) || nullOrEmpty(email)) {
-                    write("{\"error\": \"Dieser Benutzer ist schon vorhanden\"}", 400, exchange);
+                } else if (!nullOrEmpty(name) || !nullOrEmpty(password) || !nullOrEmpty(group) || !nullOrEmpty(email)) {
+                    write("{\"error\": \"Es wurden nicht alle Felder ausgefüllt\"}", 400, exchange);
                 } else {
                     PreparedStatement insertStatement = connection.prepareStatement("INSERT INTO users VALUES (DEFAULT, ?, ?, ?, ?)");
                     insertStatement.setString(1, name);
@@ -114,7 +114,7 @@ public class HTTPServer {
                     insertStatement.executeUpdate();
                     write("{\"result\": \"Der Benutzer mit der E-Mail-Adresse " + map.get("email") + " wird erstellt\"}", 201, exchange);
                 }
-            } catch (SQLException | ClassNotFoundException e) {
+            } catch (SQLException e) {
                 e.printStackTrace();
             }
         }
@@ -125,35 +125,35 @@ public class HTTPServer {
       @Override
       public void handle(HttpExchange exchange) throws IOException {
 				String[] info = new String(Files.readAllBytes(Paths.get("res/password.txt"))).split(";");
-	
+
 				String studentId = queryToMap(exchange.getRequestURI().getQuery()).get("studentId");
 				System.out.println(studentId);
 				try {
 					Connection connection = DriverManager.getConnection("jdbc:mysql://" + info[0] + ":3306/notenverwaltung", info[1], info[2]);
-					
+
 					//SQL Query
 					PreparedStatement statement = connection.prepareStatement("SELECT val, testId FROM grades WHERE studentId=?");
 					statement.setString(1, studentId);
 					ResultSet resultSet = statement.executeQuery();
-					
+
 					//Reult to JSONObject
 					JSONObject grades = new JSONObject();
 					while (resultSet.next()) {
 						grades.put(resultSet.getString("testId"), resultSet.getInt("val"));
 					}
-					
+
 					//Result to Map
 					HashMap<String, Integer> vals = new HashMap<>();
 					while (resultSet.next()) {
 						vals.put(resultSet.getString("testId"), resultSet.getInt("val"));
 					}
-					
+
 					//Structure: TestId, Note vom Test
 					write(grades.toJSONString(), 200, exchange);
 				} catch (SQLException e) {
 					e.printStackTrace();
 				}
-	
+
 			}
     }
 
@@ -174,7 +174,25 @@ public class HTTPServer {
 
         @Override
         public void handle(HttpExchange exchange) throws IOException {
+          StringBuilder columnValue = new StringBuilder();
 
+            try {
+                Statement statement = connection.createStatement();
+                ResultSet set = statement.executeQuery("SELECT name FROM users");
+                System.out.println(set);
+
+              while (set.next()) {
+                columnValue.append(set.getString(1) + " ");
+              }
+              if(set.next()){
+                write(columnValue.toString(), 200, exchange);
+              } else {
+                write(columnValue.toString(), 401, exchange);
+              }
+              System.out.println(columnValue);
+            } catch (Exception e) {
+              e.printStackTrace();
+            }
         }
     }
 
@@ -207,5 +225,4 @@ public class HTTPServer {
     private static boolean nullOrEmpty(String string) {
         return string == null || string.equals("");
     }
-    
 }
