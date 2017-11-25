@@ -70,8 +70,8 @@ public class HTTPServer {
                 statement.setString(2, password);
                 ResultSet resultSet = statement.executeQuery();
 
-                obj.put("username", password);
-                obj.put("password", username);
+                obj.put("username", username);
+                obj.put("password", password);
                // obj.put("success", resultSet.next());
                 if(resultSet.next()){
                     write(obj.toJSONString(),200, exchange);
@@ -196,18 +196,18 @@ public class HTTPServer {
             }
         }
     }
-	
+
 	private static class GetClassDataHandler implements HttpHandler {
-		
+
 		@Override
 		public void handle(HttpExchange exchange) throws IOException {
 			StringBuilder columnValue = new StringBuilder();
-			
+
 			try {
 				Statement statement = connection.createStatement();
 				ResultSet set = statement.executeQuery("SELECT name FROM classes");
 				System.out.println(set);
-				
+
 				while (set.next()) {
 					columnValue.append(set.getString(1) + " ");
 				}
