@@ -6,6 +6,7 @@ import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
+import java.util.LinkedHashMap;
 
 public class HTTPServer {
     public static void main(String[] args) {
@@ -47,6 +48,13 @@ public class HTTPServer {
         os.write(text.getBytes("UTF-8"));
         os.close();
     }
-
+    private static LinkedHashMap<String, String> queryToMap(String s){
+        LinkedHashMap<String, String> map = new LinkedHashMap<>();
+        String[] e = s.split("&");
+        for(String el : e){
+            map.put(el.substring(0, el.indexOf("=")), el.substring(el.indexOf("=")+1));
+        }
+        return map;
+    }
 
 }
