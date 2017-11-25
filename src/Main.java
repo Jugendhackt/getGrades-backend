@@ -199,9 +199,7 @@ public class Main {
                 JSONObject obj = new JSONObject();
                 JSONArray array = new JSONArray();
                 while (set.next()) {
-                    JSONObject tempObj = new JSONObject();
-                    tempObj.put("name", set.getString("name"));
-                    array.add(tempObj);
+                    array.add(set.getString("name"));
                 }
                 obj.put("subjects", array);
                 write(obj.toJSONString(), 200, exchange);
