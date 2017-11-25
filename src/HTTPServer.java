@@ -1,12 +1,12 @@
-import com.sun.net.httpserver.*;
+import com.sun.net.httpserver.Headers;
+import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpHandler;
+import com.sun.net.httpserver.HttpServer;
+import org.json.simple.JSONObject;
 
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.sql.*;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -47,8 +47,35 @@ public class HTTPServer {
 
         @Override
         public void handle(HttpExchange exchange) throws IOException {
-            write("Hallo Welt! Sie sind eingeloggt", 200, exchange);
-        }
+            String query = exchange.getRequestURI().getQuery();
+            HashMap<String, String> userdata = queryToMap(query);
+            String username = userdata.get("username");
+            String password = userdata.get("password");
+
+            JSONObject obj = new JSONObject();
+
+            try {
+                final String infoFile = "res/password.txt";
+                String[] info = new String(Files.readAllBytes(Paths.get(infoFile))).split(";");
+                Class.forName("com.mysql.jdbc.Driver");
+                Connection connection = DriverManager.getConnection("jdbc:mysql://10.23.41.229:3306/notenverwaltung", "notenadmin", info[2]);
+
+                PreparedStatement statement = connection.prepareStatement("SELECT * FROM users WHERE users.name = ? AND users.pwd = ?");
+                statement.setString(1, username);
+                statement.setString(2, password);
+                ResultSet resultSet = statement.executeQuery();
+
+                obj.put("username", password);
+                obj.put("password", username);
+                obj.put("success", resultSet.next());
+
+                write(obj.toJSONString(), exchange);
+            }
+            catch (Exception e){
+                e.printStackTrace();
+            }
+            }
+
     }
 
     private static class NewUserHandler implements HttpHandler {
