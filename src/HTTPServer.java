@@ -41,7 +41,7 @@ public class HTTPServer {
     }
 
     private static void write(String text, HttpExchange e) throws IOException {
-        e.getResponseHeaders().add("Content-Type", "text/json; charset=utf-8");
+        e.getResponseHeaders().add("Content-Type", "application/json; charset=utf-8");
         e.sendResponseHeaders(200, 0);
         OutputStream os = e.getResponseBody();
         os.write(text.getBytes("UTF-8"));
