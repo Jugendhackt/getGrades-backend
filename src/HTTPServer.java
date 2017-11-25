@@ -162,7 +162,12 @@ public class HTTPServer {
 
         @Override
         public void handle(HttpExchange exchange) throws IOException {
+            String query = exchange.getRequestURI().getQuery();
+            HashMap<String, String> userdata = queryToMap(query);
+            String username = userdata.get("username");
+            String password = userdata.get("password");
 
+            JSONObject obj = new JSONObject();
         }
     }
 
