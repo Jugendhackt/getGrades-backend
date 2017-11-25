@@ -80,9 +80,13 @@ public class HTTPServer {
 
                 obj.put("username", password);
                 obj.put("password", username);
-                obj.put("success", resultSet.next());
-
-                write(obj.toJSONString(), 200, exchange);
+               // obj.put("success", resultSet.next());
+                if(resultSet.next()){
+                    write(obj.toJSONString(),200, exchange);
+                }
+                else{
+                    write(obj.toJSONString(),401, exchange);
+                }
             }
             catch (Exception e){
                 e.printStackTrace();
