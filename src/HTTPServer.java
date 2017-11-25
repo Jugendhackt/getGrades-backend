@@ -252,10 +252,6 @@ public class HTTPServer {
                 String value = data.get("value");
                 JSONObject obj = new JSONObject();
                 try {
-                    final String infoFile = "res/password.txt";
-                    String[] info = new String(Files.readAllBytes(Paths.get(infoFile))).split(";");
-                    Class.forName("com.mysql.jdbc.Driver");
-                    Connection connection = DriverManager.getConnection("jdbc:mysql://10.23.41.229:3306/notenverwaltung", "notenadmin", info[2]);
                     PreparedStatement statement = connection.prepareStatement("UPDATE grades " +
                             "LEFT JOIN tests ON grades.testId=tests.Id " +
                             "LEFT JOIN users ON tests.lehrerId = users.id " +
