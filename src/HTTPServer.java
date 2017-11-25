@@ -4,8 +4,7 @@ import com.sun.net.httpserver.HttpServer;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 
-import java.io.IOException;
-import java.io.OutputStream;
+import java.io.*;
 import java.net.InetSocketAddress;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -15,7 +14,6 @@ import java.util.LinkedHashMap;
 
 public class HTTPServer {
 
-    private final String infoFile = "res/password.txt";//this.getClass().getResource("/password.txt").getPath();
     private static Connection connection = null;
 
     public static void main(String[] args) {
@@ -24,11 +22,10 @@ public class HTTPServer {
 
     private HTTPServer() {
         try {
-            System.out.println(infoFile);
-            String[] info = new String(Files.readAllBytes(Paths.get(infoFile))).split(";");
             Class.forName("com.mysql.jdbc.Driver");
+            InputStream in = getClass().getResourceAsStream("/password.txt");
+            String[] info = new BufferedReader(new InputStreamReader(in)).lines().toArray(String[]::new);
             connection = DriverManager.getConnection("jdbc:mysql://" + info[0] + ":3306/notenverwaltung", info[1], info[2]);
-
             HttpServer server = HttpServer.create(new InetSocketAddress(1337), 0);
             server.createContext("/", new Handler());
             server.createContext("/login", new LoginHandler());
@@ -52,11 +49,11 @@ public class HTTPServer {
 
         @Override
         public void handle(HttpExchange exchange) throws IOException {
-            write("Wohoo!", 200, exchange);
+            write("{\"response\": \"Wohoo!\"}", 200, exchange);
         }
     }
-    
-    
+
+
 
     private static class LoginHandler implements HttpHandler {
 
@@ -67,34 +64,35 @@ public class HTTPServer {
             String username = userdata.get("username");
             String password = userdata.get("password");
 
-            JSONObject obj = new JSONObject();
-
             try {
-                PreparedStatement statement = connection.prepareStatement("SELECT groups.name FROM users " +
-                        "LEFT JOIN groups ON users.groupId = groups.id " +
-                        "WHERE users.name = ? AND users.pwd = ?");
+                PreparedStatement statement = connection.prepareStatement("SELECT * FROM users WHERE email=? AND pwd=?");
                 statement.setString(1, username);
                 statement.setString(2, password);
                 ResultSet resultSet = statement.executeQuery();
-
-
-                obj.put("username", username);
-                obj.put("password", password);
-               // obj.put("success", resultSet.next());
-                if(resultSet.next()){
-                    String group = resultSet.getString("name");
-                    obj.put("groupid",group);
-                    write(obj.toJSONString(),200, exchange);
+                int size = 0;
+                while (resultSet.next()) size++;
+                JSONObject responseObject = new JSONObject();
+                boolean isValid = false;
+                if (nullOrEmpty(username) || nullOrEmpty(password) || size == 0) {
+                    responseObject.put("name", null);
+                    responseObject.put("groupId", null);
+                    responseObject.put("response", false);
+                } else {
+                    System.out.println(size);
+                    while (resultSet.next()) {
+                        responseObject.put("name", resultSet.getString("name"));
+                        responseObject.put("groupId", resultSet.getString("groupId"));
+                        responseObject.put("response", true);
+                        System.out.println(responseObject);
+                    }
+                    isValid = true;
                 }
-                else{
-                    obj.put("goupid", "" );
-                    write(obj.toJSONString(),401, exchange);
-                }
+                write(responseObject.toJSONString(), isValid ? 200 : 400, exchange);
             }
             catch (Exception e){
                 e.printStackTrace();
             }
-            }
+        }
 
     }
 
@@ -115,7 +113,7 @@ public class HTTPServer {
                 String email = map.get("email");
                 if (exists(set)) {
                     write("{\"error\": \"Dieser Benutzer ist schon vorhanden\"}", 401, exchange);
-                } else if (!nullOrEmpty(name) || !nullOrEmpty(password) || !nullOrEmpty(group) || !nullOrEmpty(email)) {
+                } else if (nullOrEmpty(name) || nullOrEmpty(password) || nullOrEmpty(group) || nullOrEmpty(email)) {
                     write("{\"error\": \"Es wurden nicht alle Felder ausgefüllt\"}", 400, exchange);
                 } else {
                     PreparedStatement insertStatement = connection.prepareStatement("INSERT INTO users VALUES (DEFAULT, ?, ?, ?, ?)");
@@ -136,13 +134,8 @@ public class HTTPServer {
 
       @Override
       public void handle(HttpExchange exchange) throws IOException {
-				String[] info = new String(Files.readAllBytes(Paths.get("res/password.txt"))).split(";");
-
 				String studentId = queryToMap(exchange.getRequestURI().getQuery()).get("studentId");
 				try {
-					//httpquery: ...?studentId=studentId
-					Connection connection = DriverManager.getConnection("jdbc:mysql://" + info[0] + ":3306/notenverwaltung", info[1], info[2]);
-
 					//SQL Query
 					PreparedStatement statement = connection.prepareStatement("SELECT val, testId FROM grades WHERE studentId=?");
 					statement.setString(1, studentId);
@@ -166,29 +159,29 @@ public class HTTPServer {
 
 			}
     }
-	
+
 		private static class GetClassSubjectsHandler implements HttpHandler {
-    	
+
   	  @Override
 			public void handle(HttpExchange exchange) throws IOException {
 				String[] info = new String(Files.readAllBytes(Paths.get("res/password.txt"))).split(";");
-		
+
 				String classId = queryToMap(exchange.getRequestURI().getQuery()).get("classId");
   	  	try {
   	  		//httpquery: ...?classId=class
 					Connection connection = DriverManager.getConnection("jdbc:mysql://" + info[0] + ":3306/notenverwaltung", info[1], info[2]);
-			
+
 					//Result to JSONObject
 					PreparedStatement statement = connection.prepareStatement("SELECT subjects.name FROM relationshipsTeacher LEFT JOIN subjects ON relationshipsTeacher.fachId = subjects.id WHERE klassenId = ?");
 					statement.setString(1, classId);
 					ResultSet resultSet = statement.executeQuery();
-			
+
 					//Result to JSONObject
 					JSONArray subjects = new JSONArray();
 					while (resultSet.next()) {
 						subjects.add(resultSet.getString("name"));
 					}
-			
+
 					if (!subjects.isEmpty()) {
 						//Structure: Array mit Fächern der Klasse
 						write(subjects.toJSONString(), 200, exchange);
@@ -205,12 +198,22 @@ public class HTTPServer {
 
         @Override
         public void handle(HttpExchange exchange) throws IOException {
-            String query = exchange.getRequestURI().getQuery();
-            HashMap<String, String> userdata = queryToMap(query);
-            String username = userdata.get("username");
-            String password = userdata.get("password");
+            try {
+                PreparedStatement statement = connection.prepareStatement("SELECT name FROM subjects");
+                ResultSet set = statement.executeQuery();
+                JSONObject obj = new JSONObject();
+                JSONArray array = new JSONArray();
+                while (set.next()) {
+                    JSONObject tempObj = new JSONObject();
+                    tempObj.put("name", set.getString("name"));
+                    array.add(tempObj);
+                }
+                obj.put("subjects", array);
+                write(obj.toJSONString(), 200, exchange);
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
 
-            JSONObject obj = new JSONObject();
         }
     }
 
@@ -223,7 +226,6 @@ public class HTTPServer {
             try {
                 Statement statement = connection.createStatement();
                 ResultSet set = statement.executeQuery("SELECT name FROM users");
-                System.out.println(set);
 
               while (set.next()) {
                 columnValue.append(set.getString(1) + " ");
@@ -233,7 +235,6 @@ public class HTTPServer {
               } else {
                 write(columnValue.toString(), 401, exchange);
               }
-              System.out.println(columnValue);
             } catch (Exception e) {
               e.printStackTrace();
             }
@@ -286,7 +287,6 @@ public class HTTPServer {
 			try {
 				Statement statement = connection.createStatement();
 				ResultSet set = statement.executeQuery("SELECT name FROM classes");
-				System.out.println(set);
 
 				while (set.next()) {
 					columnValue.append(set.getString(1) + " ");
@@ -296,7 +296,6 @@ public class HTTPServer {
 				} else {
 					write(columnValue.toString(), 401, exchange);
 				}
-				System.out.println(columnValue);
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
@@ -305,6 +304,7 @@ public class HTTPServer {
 
     private static void write(String text, int responseCode, HttpExchange e) throws IOException {
         e.getResponseHeaders().add("Content-Type", "application/json; charset=utf-8");
+        e.getResponseHeaders().add("Access-Control-Allow-Origin", "http://localhost:4200");
         e.sendResponseHeaders(responseCode, 0);
         OutputStream os = e.getResponseBody();
         os.write(text.getBytes("UTF-8"));
@@ -332,6 +332,4 @@ public class HTTPServer {
     private static boolean nullOrEmpty(String string) {
         return string == null || string.equals("");
     }
-	
-	
 }
