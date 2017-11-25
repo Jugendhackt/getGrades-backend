@@ -72,7 +72,7 @@ public class HTTPServer {
                 obj.put("password", username);
                 obj.put("success", resultSet.next());
 
-                write(obj.toJSONString(), exchange);
+                write(obj.toJSONString(), 200, exchange);
             }
             catch (Exception e){
                 e.printStackTrace();
