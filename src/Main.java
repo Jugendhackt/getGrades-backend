@@ -6,8 +6,6 @@ import org.json.simple.JSONObject;
 
 import java.io.*;
 import java.net.InetSocketAddress;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.sql.*;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -26,7 +24,6 @@ public class Main {
             InputStream in = getClass().getResourceAsStream("/password.txt");
             String[] info = new BufferedReader(new InputStreamReader(in)).lines().toArray(String[]::new);
             connection = DriverManager.getConnection("jdbc:mysql://" + info[0] + ":3306/notenverwaltung", info[1], info[2]);
-
             HttpServer server = HttpServer.create(new InetSocketAddress(1337), 0);
             server.createContext("/", new Handler());
             server.createContext("/login", new LoginHandler());
@@ -73,22 +70,23 @@ public class Main {
                 int size = 0;
                 while (resultSet.next()) size++;
                 JSONObject responseObject = new JSONObject();
-                boolean isValid = false;
+                responseObject.put("name", null);
+                responseObject.put("groupId", null);
+                responseObject.put("response", false);
                 if (nullOrEmpty(username) || nullOrEmpty(password) || size == 0) {
-                    responseObject.put("name", null);
-                    responseObject.put("groupId", null);
-                    responseObject.put("response", false);
+                    write(responseObject.toJSONString(), 401, exchange);
+                    System.out.println("out " + size);
                 } else {
-                    System.out.println(size);
+                    System.out.println("in");
                     while (resultSet.next()) {
+                        System.out.println("entered");
                         responseObject.put("name", resultSet.getString("name"));
                         responseObject.put("groupId", resultSet.getString("groupId"));
                         responseObject.put("response", true);
                         System.out.println(responseObject);
                     }
-                    isValid = true;
+                    write(responseObject.toJSONString(), 200, exchange);
                 }
-                write(responseObject.toJSONString(), isValid ? 200 : 400, exchange);
             }
             catch (Exception e){
                 e.printStackTrace();
@@ -132,74 +130,64 @@ public class Main {
     }
 
     private static class GetGradesHandler implements HttpHandler {
-    	/*
-    	BEI FRAGEN: DIESE METHODE WURDE VON MALTE ERSTELLT
-    	 */
 
-      @Override
-      public void handle(HttpExchange exchange) throws IOException {
-				String studentId = queryToMap(exchange.getRequestURI().getQuery()).get("studentId");
-				try {
-					//SQL Query
-					PreparedStatement statement = connection.prepareStatement("SELECT val, testId FROM grades WHERE studentId=?");
-					statement.setString(1, studentId);
-					ResultSet resultSet = statement.executeQuery();
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            String studentId = queryToMap(exchange.getRequestURI().getQuery()).get("studentId");
+            try {
+                //SQL Query
+                PreparedStatement statement = connection.prepareStatement("SELECT val, testId FROM grades WHERE studentId=?");
+                statement.setString(1, studentId);
+                ResultSet resultSet = statement.executeQuery();
 
-					//Result to JSONObject
-					JSONObject grades = new JSONObject();
-					while (resultSet.next()) {
-						grades.put(resultSet.getString("testId"), resultSet.getInt("val"));
-					}
+                //Result to JSONObject
+                JSONObject grades = new JSONObject();
+                while (resultSet.next()) {
+                    grades.put(resultSet.getString("testId"), resultSet.getInt("val"));
+                }
 
-					if (!grades.isEmpty()) {
-						//Structure: TestId, Note vom Test
-						write(grades.toJSONString(), 200, exchange);
-					} else {
-						write("[\"Nothing to see here\"]", 404, exchange);
-					}
-				} catch (SQLException e) {
-					e.printStackTrace();
-				}
+                if (!grades.isEmpty()) {
+                    //Structure: TestId, Note vom Test
+                    write(grades.toJSONString(), 200, exchange);
+                } else {
+                    write("{\"response:Nothing to see here\"]", 404, exchange);
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
 
-			}
+        }
     }
 
-		private static class GetClassSubjectsHandler implements HttpHandler {
-			/*
-			BEI FRAGEN: DIESE METHODE WURDE VON MALTE ERSTELLT
-			 */
-			
-  	  @Override
-			public void handle(HttpExchange exchange) throws IOException {
-				String[] info = new String(Files.readAllBytes(Paths.get("res/password.txt"))).split(";");
+    private static class GetClassSubjectsHandler implements HttpHandler {
 
-				String classId = queryToMap(exchange.getRequestURI().getQuery()).get("classId");
-  	  	try {
-  	  		//httpquery: ...?classId=class
-					Connection connection = DriverManager.getConnection("jdbc:mysql://" + info[0] + ":3306/notenverwaltung", info[1], info[2]);
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            String classId = queryToMap(exchange.getRequestURI().getQuery()).get("classId");
+            try {
+                //httpquery: ...?classId=class
+                //Result to JSONObject
+                PreparedStatement statement = connection.prepareStatement("SELECT subjects.name FROM relationshipsTeacher LEFT JOIN subjects ON relationshipsTeacher.fachId = subjects.id WHERE klassenId = ?");
+                statement.setString(1, classId);
+                ResultSet resultSet = statement.executeQuery();
 
-					//Result to JSONObject
-					PreparedStatement statement = connection.prepareStatement("SELECT subjects.name FROM relationshipsTeacher LEFT JOIN subjects ON relationshipsTeacher.fachId = subjects.id WHERE klassenId = ?");
-					statement.setString(1, classId);
-					ResultSet resultSet = statement.executeQuery();
+                //Result to JSONObject
+                JSONArray subjects = new JSONArray();
+                while (resultSet.next()) {
+                    subjects.add(resultSet.getString("name"));
+                }
 
-					//Result to JSONObject
-					JSONArray subjects = new JSONArray();
-					while (resultSet.next()) {
-						subjects.add(resultSet.getString("name"));
-					}
-
-					if (!subjects.isEmpty()) {
-						//Structure: Array mit Fächern der Klasse
-						write(subjects.toJSONString(), 200, exchange);
-					} else {
-						write("[\"Nothing to see here\"]", 404, exchange);
-					}
-  	  	} catch (SQLException sql) {
-  	  		sql.printStackTrace();
-				}
-			}
-		}
+                if (!subjects.isEmpty()) {
+                    //Structure: Array mit Fächern der Klasse
+                    write(subjects.toJSONString(), 200, exchange);
+                } else {
+                    write("[\"Nothing to see here\"]", 404, exchange);
+                }
+            } catch (SQLException sql) {
+                sql.printStackTrace();
+            }
+        }
+    }
 
     private static class GetSubjectsHandler implements HttpHandler {
 
@@ -228,22 +216,22 @@ public class Main {
 
         @Override
         public void handle(HttpExchange exchange) throws IOException {
-          StringBuilder columnValue = new StringBuilder();
+            StringBuilder columnValue = new StringBuilder();
 
             try {
                 Statement statement = connection.createStatement();
                 ResultSet set = statement.executeQuery("SELECT name FROM users");
 
-              while (set.next()) {
-                columnValue.append(set.getString(1) + " ");
-              }
-              if(set.next()){
-                write(columnValue.toString(), 200, exchange);
-              } else {
-                write(columnValue.toString(), 401, exchange);
-              }
+                while (set.next()) {
+                    columnValue.append(set.getString(1) + " ");
+                }
+                if(set.next()){
+                    write(columnValue.toString(), 200, exchange);
+                } else {
+                    write(columnValue.toString(), 401, exchange);
+                }
             } catch (Exception e) {
-              e.printStackTrace();
+                e.printStackTrace();
             }
         }
     }
@@ -252,58 +240,58 @@ public class Main {
 
         @Override
         public void handle(HttpExchange exchange) throws IOException {
-                String query = exchange.getRequestURI().getQuery();
-                HashMap<String, String> data = queryToMap(query);
-                String gradeID = data.get("gradeId");
-                String teacherID = data.get("teacherId");
-                String value = data.get("value");
-                JSONObject obj = new JSONObject();
-                try {
-                    PreparedStatement statement = connection.prepareStatement("UPDATE grades " +
-                            "LEFT JOIN tests ON grades.testId=tests.Id " +
-                            "LEFT JOIN users ON tests.lehrerId = users.id " +
-                            "SET grades.val = ? " +
-                            "WHERE users.id = ? AND grades.id = ?");
-                    statement.setString(1, value);
-                    statement.setString(2, teacherID);
-                    statement.setString(3, gradeID);
-                    int result = statement.executeUpdate();
+            String query = exchange.getRequestURI().getQuery();
+            HashMap<String, String> data = queryToMap(query);
+            String gradeID = data.get("gradeId");
+            String teacherID = data.get("teacherId");
+            String value = data.get("value");
+            JSONObject obj = new JSONObject();
+            try {
+                PreparedStatement statement = connection.prepareStatement("UPDATE grades " +
+                        "LEFT JOIN tests ON grades.testId=tests.Id " +
+                        "LEFT JOIN users ON tests.lehrerId = users.id " +
+                        "SET grades.val = ? " +
+                        "WHERE users.id = ? AND grades.id = ?");
+                statement.setString(1, value);
+                statement.setString(2, teacherID);
+                statement.setString(3, gradeID);
+                int result = statement.executeUpdate();
 
-                    obj.put("Success", result>0);
+                obj.put("Success", result>0);
 
-                    write(obj.toJSONString(), 200, exchange);
-                }
-                catch (Exception e){
-                    e.printStackTrace();
-                }
+                write(obj.toJSONString(), 200, exchange);
             }
+            catch (Exception e){
+                e.printStackTrace();
+            }
+        }
 
 
     }
 
-	private static class GetClassDataHandler implements HttpHandler {
+    private static class GetClassDataHandler implements HttpHandler {
 
-		@Override
-		public void handle(HttpExchange exchange) throws IOException {
-			StringBuilder columnValue = new StringBuilder();
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            StringBuilder columnValue = new StringBuilder();
 
-			try {
-				Statement statement = connection.createStatement();
-				ResultSet set = statement.executeQuery("SELECT name FROM classes");
+            try {
+                Statement statement = connection.createStatement();
+                ResultSet set = statement.executeQuery("SELECT name FROM classes");
 
-				while (set.next()) {
-					columnValue.append(set.getString(1) + " ");
-				}
-				if(set.next()){
-					write(columnValue.toString(), 200, exchange);
-				} else {
-					write(columnValue.toString(), 401, exchange);
-				}
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
-		}
-	}
+                while (set.next()) {
+                    columnValue.append(set.getString(1) + " ");
+                }
+                if(set.next()){
+                    write(columnValue.toString(), 200, exchange);
+                } else {
+                    write(columnValue.toString(), 401, exchange);
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    }
 
     private static void write(String text, int responseCode, HttpExchange e) throws IOException {
         e.getResponseHeaders().add("Content-Type", "application/json; charset=utf-8");
