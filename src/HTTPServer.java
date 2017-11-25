@@ -65,7 +65,9 @@ public class HTTPServer {
             JSONObject obj = new JSONObject();
 
             try {
-                PreparedStatement statement = connection.prepareStatement("SELECT * FROM users WHERE users.name = ? AND users.pwd = ?");
+                PreparedStatement statement = connection.prepareStatement("SELECT groups.name FROM users " +
+                        "LEFT JOIN groups ON users.groupId = groups.id " +
+                        "WHERE users.name = ? AND users.pwd = ?");
                 statement.setString(1, username);
                 statement.setString(2, password);
                 ResultSet resultSet = statement.executeQuery();
