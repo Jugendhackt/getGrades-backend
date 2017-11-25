@@ -3,6 +3,8 @@ import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 import org.json.simple.JSONObject;
+import com.sun.net.httpserver.*;
+import org.json.simple.*;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -10,14 +12,19 @@ import java.net.InetSocketAddress;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.sql.*;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
+import java.sql.Statement;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.Map;
 
 public class HTTPServer {
-
-    private final static String infoFile = "res/password.txt";
-
     public static void main(String[] args) {
         try {
             HttpServer server = HttpServer.create(new InetSocketAddress(1337), 0);
@@ -40,9 +47,8 @@ public class HTTPServer {
 
         @Override
         public void handle(HttpExchange exchange) throws IOException {
-            String query = exchange.getRequestURI().getQuery();
-            write(query, 200, exchange);
-
+            Headers headers = exchange.getRequestHeaders();
+            write("Hallo Welt!", exchange);
         }
     }
 
@@ -85,36 +91,7 @@ public class HTTPServer {
 
         @Override
         public void handle(HttpExchange exchange) throws IOException {
-            String query = exchange.getRequestURI().getQuery();
-            HashMap<String, String> map = queryToMap(query);
-            try {
-                String[] info = new String(Files.readAllBytes(Paths.get(infoFile))).split(";");
-                Class.forName("com.mysql.jdbc.Driver");
-                Connection connection = DriverManager.getConnection("jdbc:mysql://" + info[0] + ":3306/notenverwaltung", info[1], info[2]);
-                PreparedStatement statement = connection.prepareStatement("SELECT email FROM users WHERE email = ?");
-                statement.setString(1, map.get("email"));
-                ResultSet set = statement.executeQuery();
 
-                String name = map.get("name");
-                String password = map.get("password");
-                String group = map.get("groupId");
-                String email = map.get("email");
-                if (exists(set)) {
-                    write("{\"error\": \"Dieser Benutzer ist schon vorhanden\"}", 401, exchange);
-                } else if (nullOrEmpty(name) || nullOrEmpty(password) || nullOrEmpty(group) || nullOrEmpty(email)) {
-                    write("{\"error\": \"Dieser Benutzer ist schon vorhanden\"}", 400, exchange);
-                } else {
-                    PreparedStatement insertStatement = connection.prepareStatement("INSERT INTO users VALUES (DEFAULT, ?, ?, ?, ?)");
-                    insertStatement.setString(1, name);
-                    insertStatement.setString(2, password);
-                    insertStatement.setString(3, group);
-                    insertStatement.setString(4, email);
-                    insertStatement.executeUpdate();
-                    write("{\"result\": \"Der Benutzer mit der E-Mail-Adresse " + map.get("email") + " wird erstellt\"}", 201, exchange);
-                }
-            } catch (SQLException | ClassNotFoundException e) {
-                e.printStackTrace();
-            }
         }
     }
 
@@ -138,13 +115,41 @@ public class HTTPServer {
 
         @Override
         public void handle(HttpExchange exchange) throws IOException {
+          StringBuilder columnValue = new StringBuilder();
 
+            try {
+                String[] info = new String(Files.readAllBytes(Paths.get("res/passwort.txt"))).split(";");
+                Connection connection = DriverManager
+                    .getConnection("jdbc:mysql://" + info[0] + ":3306/notenverwaltung", info[1], info[2]);
+                Statement statement = connection.createStatement();
+                ResultSet set = statement.executeQuery("SELECT name FROM users");
+                System.out.println(set);
+              ResultSetMetaData rsmd = set.getMetaData();
+              int columnsNumber = rsmd.getColumnCount();
+              while (set.next()) {
+                for (int i = 1; i <= columnsNumber; i++) {
+                  if (i > 1) System.out.print(",  ");
+
+                  columnValue.append(set.getString(i));
+
+                }
+
+              }
+              if(set.next()) {
+                write(columnValue.toString(), exchange, 200);
+              }
+              else {
+                write(columnValue.toString(), exchange, 401);
+              }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
     }
 
-    private static void write(String text, int responseCode, HttpExchange e) throws IOException {
+    private static void write(String text, HttpExchange e) throws IOException {
         e.getResponseHeaders().add("Content-Type", "application/json; charset=utf-8");
-        e.sendResponseHeaders(responseCode, 0);
+        e.sendResponseHeaders(200, 0);
         OutputStream os = e.getResponseBody();
         os.write(text.getBytes("UTF-8"));
         os.close();
@@ -159,16 +164,4 @@ public class HTTPServer {
         return map;
     }
 
-    private static boolean exists(ResultSet set) {
-        try {
-            return set.next();
-        } catch (SQLException e) {
-            e.printStackTrace();
-            return false;
-        }
-    }
-
-    private static boolean nullOrEmpty(String string) {
-        return string == null || string.equals("");
-    }
 }
