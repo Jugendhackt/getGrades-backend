@@ -189,10 +189,10 @@ public class HTTPServer {
 					}
 			
 					if (!subjects.isEmpty()) {
-						//Structure: TestId, Note vom Test
+						//Structure: Array mit Fächern der Klasse
 						write(subjects.toJSONString(), 200, exchange);
 					} else {
-						write("Nothing to see here", 404, exchange);
+						write("[]", 404, exchange);
 					}
   	  	} catch (SQLException sql) {
   	  		sql.printStackTrace();
