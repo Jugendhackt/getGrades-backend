@@ -1,11 +1,10 @@
-import com.sun.net.httpserver.Headers;
-import com.sun.net.httpserver.HttpExchange;
-import com.sun.net.httpserver.HttpHandler;
-import com.sun.net.httpserver.HttpServer;
+import com.sun.net.httpserver.*;
 
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 
 public class HTTPServer {
@@ -14,6 +13,10 @@ public class HTTPServer {
             HttpServer server = HttpServer.create(new InetSocketAddress(1337), 0);
             server.createContext("/", new Handler());
             server.createContext("/login", new LoginHandler());
+            server.createContext("/newuser", new NewUserHandler());
+            server.createContext("/getgrades", new GetGradesHandler());
+            server.createContext("/getsubjects", new GetSubjectsHandler());
+            server.createContext("/getuserdata", new GetUserDataHandler());
             System.out.println("Server wird gestartet...");
             server.setExecutor(null);
             server.start();
@@ -27,8 +30,9 @@ public class HTTPServer {
 
         @Override
         public void handle(HttpExchange exchange) throws IOException {
-            Headers headers = exchange.getRequestHeaders();
-            write("Hallo Welt!", exchange);
+            String query = exchange.getRequestURI().getQuery();
+            write(query, exchange);
+
         }
     }
 
@@ -36,19 +40,51 @@ public class HTTPServer {
 
         @Override
         public void handle(HttpExchange exchange) throws IOException {
-
             write("Hallo Welt! Sie sind eingeloggt", exchange);
         }
     }
 
+    private static class NewUserHandler implements HttpHandler {
+
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+
+        }
+    }
+
+    private static class GetGradesHandler implements HttpHandler {
+
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+
+        }
+    }
+
+    private static class GetSubjectsHandler implements HttpHandler {
+
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+
+        }
+    }
+
+    private static class GetUserDataHandler implements HttpHandler {
+
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+
+        }
+    }
+
     private static void write(String text, HttpExchange e) throws IOException {
-        e.getResponseHeaders().add("Content-Type", "application/json; charset=utf-8");
+        e.getResponseHeaders().add("Content-Type", "text/plain; charset=utf-8");
         e.sendResponseHeaders(200, 0);
         OutputStream os = e.getResponseBody();
         os.write(text.getBytes("UTF-8"));
         os.close();
     }
-    private static LinkedHashMap<String, String> queryToMap(String s){
+
+    private static HashMap<String, String> queryToMap(String s){
         LinkedHashMap<String, String> map = new LinkedHashMap<>();
         String[] e = s.split("&");
         for(String el : e){
@@ -56,5 +92,4 @@ public class HTTPServer {
         }
         return map;
     }
-
 }

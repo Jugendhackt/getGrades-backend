@@ -17,8 +17,8 @@ public class DBConnection {
             Class.forName("com.mysql.jdbc.Driver");
             Connection connection = DriverManager.getConnection("jdbc:mysql://" + info[0] + ":3306/notenverwaltung", info[1], info[2]);
             Statement statement = connection.createStatement();
-
-            printResult(statement.executeQuery("SELECT * FROM `test`"));
+            ResultSet set = statement.executeQuery("SELECT `text` FROM `test`");
+            printResult(set);
         } catch (Exception e) {
             e.printStackTrace();
         }
