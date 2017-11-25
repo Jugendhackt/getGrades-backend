@@ -1,10 +1,7 @@
-import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 import org.json.simple.JSONObject;
-import com.sun.net.httpserver.*;
-import org.json.simple.*;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -12,25 +9,21 @@ import java.net.InetSocketAddress;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.sql.*;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.ResultSet;
-import java.sql.ResultSetMetaData;
-import java.sql.Statement;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
-import java.util.Map;
 
 public class HTTPServer {
 
-    private final static String infoFile = "res/password.txt";
+    private final String infoFile = "res/password.txt";//this.getClass().getResource("/password.txt").getPath();
     private static Connection connection = null;
 
     public static void main(String[] args) {
+        new HTTPServer();
+    }
+
+    private HTTPServer() {
         try {
+            System.out.println(infoFile);
             String[] info = new String(Files.readAllBytes(Paths.get(infoFile))).split(";");
             Class.forName("com.mysql.jdbc.Driver");
             connection = DriverManager.getConnection("jdbc:mysql://" + info[0] + ":3306/notenverwaltung", info[1], info[2]);
@@ -110,7 +103,7 @@ public class HTTPServer {
                 String email = map.get("email");
                 if (exists(set)) {
                     write("{\"error\": \"Dieser Benutzer ist schon vorhanden\"}", 401, exchange);
-                } else if (nullOrEmpty(name) || nullOrEmpty(password) || nullOrEmpty(group) || nullOrEmpty(email)) {
+                } else if (!nullOrEmpty(name) || !nullOrEmpty(password) || !nullOrEmpty(group) || !nullOrEmpty(email)) {
                     write("{\"error\": \"Es wurden nicht alle Felder ausgefüllt\"}", 400, exchange);
                 } else {
                     PreparedStatement insertStatement = connection.prepareStatement("INSERT INTO users VALUES (DEFAULT, ?, ?, ?, ?)");
