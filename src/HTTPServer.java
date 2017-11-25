@@ -1,9 +1,6 @@
-import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
-import org.json.simple.JSONObject;
-import com.sun.net.httpserver.*;
 import org.json.simple.JSONObject;
 
 import java.io.IOException;
@@ -12,11 +9,6 @@ import java.net.InetSocketAddress;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.sql.*;
-import java.util.*;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.sql.*;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 
@@ -153,7 +145,7 @@ public class HTTPServer {
 					}
 					
 					//Structure: TestId, Note vom Test
-					write(grades.toJSONString(), exchange);
+					write(grades.toJSONString(), 200, exchange);
 				} catch (SQLException e) {
 					e.printStackTrace();
 				}
