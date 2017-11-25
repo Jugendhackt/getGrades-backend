@@ -35,7 +35,7 @@ public class HTTPServer {
             server.createContext("/getuserdata", new GetUserDataHandler());
             server.createContext("/getclassdata", new GetClassDataHandler());
             server.createContext("/getclasssubjects", new GetClassSubjectsHandler());
-            server.createContext("/updategrades", new updateGradesHandler());
+            server.createContext("/updategrades", new UpdateGradesHandler());
             System.out.println("Server wird gestartet...");
             server.setExecutor(null);
             server.start();
@@ -241,7 +241,7 @@ public class HTTPServer {
         }
     }
 
-    private static class updateGradesHandler implements HttpHandler {
+    private static class UpdateGradesHandler implements HttpHandler {
 
         @Override
         public void handle(HttpExchange exchange) throws IOException {
