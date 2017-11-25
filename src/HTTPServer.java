@@ -1,6 +1,7 @@
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
+import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 
 import java.io.IOException;
@@ -36,6 +37,7 @@ public class HTTPServer {
             server.createContext("/getsubjects", new GetSubjectsHandler());
             server.createContext("/getuserdata", new GetUserDataHandler());
             server.createContext("/getclassdata", new GetClassDataHandler());
+            server.createContext("/getclasssubjects", new GetClassSubjectsHandler());
             System.out.println("Server wird gestartet...");
             server.setExecutor(null);
             server.start();
@@ -52,6 +54,8 @@ public class HTTPServer {
             write("Wohoo!", 200, exchange);
         }
     }
+    
+    
 
     private static class LoginHandler implements HttpHandler {
 
@@ -134,8 +138,8 @@ public class HTTPServer {
 				String[] info = new String(Files.readAllBytes(Paths.get("res/password.txt"))).split(";");
 
 				String studentId = queryToMap(exchange.getRequestURI().getQuery()).get("studentId");
-				System.out.println(studentId);
 				try {
+					//httpquery: ...?studentId=studentId
 					Connection connection = DriverManager.getConnection("jdbc:mysql://" + info[0] + ":3306/notenverwaltung", info[1], info[2]);
 
 					//SQL Query
@@ -143,26 +147,58 @@ public class HTTPServer {
 					statement.setString(1, studentId);
 					ResultSet resultSet = statement.executeQuery();
 
-					//Reult to JSONObject
+					//Result to JSONObject
 					JSONObject grades = new JSONObject();
 					while (resultSet.next()) {
 						grades.put(resultSet.getString("testId"), resultSet.getInt("val"));
 					}
 
-					//Result to Map
-					HashMap<String, Integer> vals = new HashMap<>();
-					while (resultSet.next()) {
-						vals.put(resultSet.getString("testId"), resultSet.getInt("val"));
+					if (!grades.isEmpty()) {
+						//Structure: TestId, Note vom Test
+						write(grades.toJSONString(), 200, exchange);
+					} else {
+						write("Nothing to see here", 404, exchange);
 					}
-
-					//Structure: TestId, Note vom Test
-					write(grades.toJSONString(), 200, exchange);
 				} catch (SQLException e) {
 					e.printStackTrace();
 				}
 
 			}
     }
+	
+		private static class GetClassSubjectsHandler implements HttpHandler {
+    	
+  	  @Override
+			public void handle(HttpExchange exchange) throws IOException {
+				String[] info = new String(Files.readAllBytes(Paths.get("res/password.txt"))).split(";");
+		
+				String classId = queryToMap(exchange.getRequestURI().getQuery()).get("classId");
+  	  	try {
+  	  		//httpquery: ...?classId=class
+					Connection connection = DriverManager.getConnection("jdbc:mysql://" + info[0] + ":3306/notenverwaltung", info[1], info[2]);
+			
+					//Result to JSONObject
+					PreparedStatement statement = connection.prepareStatement("SELECT subjects.name FROM relationshipsTeacher LEFT JOIN subjects ON relationshipsTeacher.fachId = subjects.id WHERE klassenId = ?");
+					statement.setString(1, classId);
+					ResultSet resultSet = statement.executeQuery();
+			
+					//Result to JSONObject
+					JSONArray subjects = new JSONArray();
+					while (resultSet.next()) {
+						subjects.add(resultSet.getString("name"));
+					}
+			
+					if (!subjects.isEmpty()) {
+						//Structure: TestId, Note vom Test
+						write(subjects.toJSONString(), 200, exchange);
+					} else {
+						write("Nothing to see here", 404, exchange);
+					}
+  	  	} catch (SQLException sql) {
+  	  		sql.printStackTrace();
+				}
+			}
+		}
 
     private static class GetSubjectsHandler implements HttpHandler {
 
@@ -258,4 +294,6 @@ public class HTTPServer {
     private static boolean nullOrEmpty(String string) {
         return string == null || string.equals("");
     }
+	
+	
 }
