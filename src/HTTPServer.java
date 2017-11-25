@@ -35,6 +35,7 @@ public class HTTPServer {
             server.createContext("/getgrades", new GetGradesHandler());
             server.createContext("/getsubjects", new GetSubjectsHandler());
             server.createContext("/getuserdata", new GetUserDataHandler());
+            server.createContext("/getclassdata", new GetClassDataHandler());
             System.out.println("Server wird gestartet...");
             server.setExecutor(null);
             server.start();
@@ -190,6 +191,32 @@ public class HTTPServer {
             }
         }
     }
+	
+	private static class GetClassDataHandler implements HttpHandler {
+		
+		@Override
+		public void handle(HttpExchange exchange) throws IOException {
+			StringBuilder columnValue = new StringBuilder();
+			
+			try {
+				Statement statement = connection.createStatement();
+				ResultSet set = statement.executeQuery("SELECT name FROM classes");
+				System.out.println(set);
+				
+				while (set.next()) {
+					columnValue.append(set.getString(1) + " ");
+				}
+				if(set.next()){
+					write(columnValue.toString(), 200, exchange);
+				} else {
+					write(columnValue.toString(), 401, exchange);
+				}
+				System.out.println(columnValue);
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		}
+	}
 
     private static void write(String text, int responseCode, HttpExchange e) throws IOException {
         e.getResponseHeaders().add("Content-Type", "application/json; charset=utf-8");
