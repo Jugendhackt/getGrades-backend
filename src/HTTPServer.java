@@ -27,9 +27,14 @@ import java.util.Map;
 public class HTTPServer {
 
     private final static String infoFile = "res/password.txt";
+    private static Connection connection = null;
 
     public static void main(String[] args) {
         try {
+            String[] info = new String(Files.readAllBytes(Paths.get(infoFile))).split(";");
+            Class.forName("com.mysql.jdbc.Driver");
+            connection = DriverManager.getConnection("jdbc:mysql://" + info[0] + ":3306/notenverwaltung", info[1], info[2]);
+
             HttpServer server = HttpServer.create(new InetSocketAddress(1337), 0);
             server.createContext("/", new Handler());
             server.createContext("/login", new LoginHandler());
@@ -41,7 +46,7 @@ public class HTTPServer {
             server.setExecutor(null);
             server.start();
             System.out.println("Server ist betriebsbereit");
-        } catch (IOException e) {
+        } catch (IOException | ClassNotFoundException | SQLException e) {
             e.printStackTrace();
         }
     }
@@ -50,9 +55,7 @@ public class HTTPServer {
 
         @Override
         public void handle(HttpExchange exchange) throws IOException {
-            String query = exchange.getRequestURI().getQuery();
-            write(query, 200, exchange);
-
+            write("Wohoo!", 200, exchange);
         }
     }
 
@@ -68,11 +71,6 @@ public class HTTPServer {
             JSONObject obj = new JSONObject();
 
             try {
-                final String infoFile = "res/password.txt";
-                String[] info = new String(Files.readAllBytes(Paths.get(infoFile))).split(";");
-                Class.forName("com.mysql.jdbc.Driver");
-                Connection connection = DriverManager.getConnection("jdbc:mysql://10.23.41.229:3306/notenverwaltung", "notenadmin", info[2]);
-
                 PreparedStatement statement = connection.prepareStatement("SELECT * FROM users WHERE users.name = ? AND users.pwd = ?");
                 statement.setString(1, username);
                 statement.setString(2, password);
@@ -102,9 +100,6 @@ public class HTTPServer {
             String query = exchange.getRequestURI().getQuery();
             HashMap<String, String> map = queryToMap(query);
             try {
-                String[] info = new String(Files.readAllBytes(Paths.get(infoFile))).split(";");
-                Class.forName("com.mysql.jdbc.Driver");
-                Connection connection = DriverManager.getConnection("jdbc:mysql://" + info[0] + ":3306/notenverwaltung", info[1], info[2]);
                 PreparedStatement statement = connection.prepareStatement("SELECT email FROM users WHERE email = ?");
                 statement.setString(1, map.get("email"));
                 ResultSet set = statement.executeQuery();
@@ -116,7 +111,7 @@ public class HTTPServer {
                 if (exists(set)) {
                     write("{\"error\": \"Dieser Benutzer ist schon vorhanden\"}", 401, exchange);
                 } else if (nullOrEmpty(name) || nullOrEmpty(password) || nullOrEmpty(group) || nullOrEmpty(email)) {
-                    write("{\"error\": \"Dieser Benutzer ist schon vorhanden\"}", 400, exchange);
+                    write("{\"error\": \"Es wurden nicht alle Felder ausgefüllt\"}", 400, exchange);
                 } else {
                     PreparedStatement insertStatement = connection.prepareStatement("INSERT INTO users VALUES (DEFAULT, ?, ?, ?, ?)");
                     insertStatement.setString(1, name);
@@ -126,7 +121,7 @@ public class HTTPServer {
                     insertStatement.executeUpdate();
                     write("{\"result\": \"Der Benutzer mit der E-Mail-Adresse " + map.get("email") + " wird erstellt\"}", 201, exchange);
                 }
-            } catch (SQLException | ClassNotFoundException e) {
+            } catch (SQLException e) {
                 e.printStackTrace();
             }
         }
@@ -155,9 +150,6 @@ public class HTTPServer {
           StringBuilder columnValue = new StringBuilder();
 
             try {
-                String[] info = new String(Files.readAllBytes(Paths.get("res/passwort.txt"))).split(";");
-                Connection connection = DriverManager
-                    .getConnection("jdbc:mysql://" + info[0] + ":3306/notenverwaltung", info[1], info[2]);
                 Statement statement = connection.createStatement();
                 ResultSet set = statement.executeQuery("SELECT name FROM users");
                 System.out.println(set);
