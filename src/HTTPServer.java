@@ -157,7 +157,7 @@ public class HTTPServer {
 						//Structure: TestId, Note vom Test
 						write(grades.toJSONString(), 200, exchange);
 					} else {
-						write("Nothing to see here", 404, exchange);
+						write("[\"Nothing to see here\"]", 404, exchange);
 					}
 				} catch (SQLException e) {
 					e.printStackTrace();
@@ -192,7 +192,7 @@ public class HTTPServer {
 						//Structure: Array mit Fächern der Klasse
 						write(subjects.toJSONString(), 200, exchange);
 					} else {
-						write("[]", 404, exchange);
+						write("[\"Nothing to see here\"]", 404, exchange);
 					}
   	  	} catch (SQLException sql) {
   	  		sql.printStackTrace();
