@@ -17,7 +17,7 @@ import java.util.LinkedHashMap;
 public class Main {
 
     private Connection connection = null;
-    private final boolean testAsJAR = true;
+    private final boolean testAsJAR = false;
 
     public static void main(String[] args) {
         new Main();
@@ -31,7 +31,7 @@ public class Main {
                 InputStream in = getClass().getResourceAsStream("/password.txt");
                 info = new BufferedReader(new InputStreamReader(in)).lines().toArray(String[]::new);
             } else
-                info = new String(Files.readAllBytes(Paths.get("res/password.txt"))).split("\n");
+                info = new String(Files.readAllBytes(Paths.get("res/password.txt"))).split(";");
             connection = DriverManager.getConnection("jdbc:mysql://" + info[0] + ":3306/notenverwaltung", info[1], info[2]);
             HttpServer server = HttpServer.create(new InetSocketAddress(1337), 0);
             server.createContext("/", new Handler());
@@ -139,19 +139,33 @@ public class Main {
         public void handle(HttpExchange exchange) throws IOException {
             String studentId = queryToMap(exchange.getRequestURI().getQuery()).get("studentId");
             try {
-                //SQL Query
-                PreparedStatement statement = connection.prepareStatement("SELECT val, testId FROM grades WHERE studentId=?");
-                statement.setString(1, studentId);
-                ResultSet resultSet = statement.executeQuery();
+            		//SQL Query (Grade) for val & testId
+							PreparedStatement statementGrade = connection.prepareStatement("SELECT val, testId FROM grades WHERE studentId=?");
+							statementGrade.setString(1, studentId);
+							ResultSet resultSetGrade = statementGrade.executeQuery();
+            	
+                //SQL Query (Meta) for fachId & datum
+                PreparedStatement statementMeta = connection.prepareStatement("SELECT fachId, datum FROM tests LEFT JOIN grades ON grades.testId = tests.id WHERE studentId=?");
+                statementMeta.setString(1, studentId);
+								ResultSet resultSetMeta = statementMeta.executeQuery();
 
                 //Result to JSONObject
                 JSONObject grades = new JSONObject();
-                while (resultSet.next()) {
-                    grades.put(resultSet.getString("testId"), resultSet.getInt("val"));
+                while (resultSetMeta.next() && resultSetGrade.next()) {
+										JSONObject grade = new JSONObject();
+										grade.put("grade", resultSetGrade.getString("val"));
+										grade.put("datum", resultSetMeta.getString("datum"));
+										grade.put("subject", resultSetMeta.getString("fachId"));
+										grades.put("Test " + resultSetGrade.getString("testId"), grade);
                 }
 
                 if (!grades.isEmpty()) {
-                    //Structure: TestId, Note vom Test
+                    /*Structure:
+                    	TestId:
+                    		datum,
+                    		subject,
+                    		grade
+                     */
                     write(grades.toJSONString(), 200, exchange);
                 } else if (nullOrEmpty(studentId)) {
                     write("{\"response\": \"Keine studentId angegeben\"}", 400, exchange);
