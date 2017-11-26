@@ -75,25 +75,19 @@ public class Main {
                 PreparedStatement statement = connection.prepareStatement("SELECT * FROM users WHERE email=? AND pwd=?");
                 statement.setString(1, username);
                 statement.setString(2, hash(password));
-                System.out.println(hash(password));
                 ResultSet resultSet = statement.executeQuery();
-                int size = 0;
-                while (resultSet.next()) size++;
                 JSONObject responseObject = new JSONObject();
                 responseObject.put("name", null);
                 responseObject.put("groupId", null);
                 responseObject.put("response", false);
-                if (nullOrEmpty(username) || nullOrEmpty(password) || size == 0) {
+                if (nullOrEmpty(username) || nullOrEmpty(password)) {
                     write(responseObject.toJSONString(), 401, exchange);
-                    System.out.println("out " + size);
                 } else {
-                    System.out.println("in " + size);
-                    while (resultSet.next()) {
+                    while (resultSet.next()){
                         System.out.println("entered");
                         responseObject.put("name", resultSet.getString("name"));
                         responseObject.put("groupId", resultSet.getString("groupId"));
                         responseObject.put("response", true);
-                        System.out.println(responseObject);
                     }
                     write(responseObject.toJSONString(), 200, exchange);
                 }
