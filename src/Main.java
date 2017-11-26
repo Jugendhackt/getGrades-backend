@@ -6,13 +6,18 @@ import org.json.simple.JSONObject;
 
 import java.io.*;
 import java.net.InetSocketAddress;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.sql.*;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 
 public class Main {
 
-    private static Connection connection = null;
+    private Connection connection = null;
+    private final boolean testAsJAR = true;
 
     public static void main(String[] args) {
         new Main();
@@ -21,8 +26,12 @@ public class Main {
     private Main() {
         try {
             Class.forName("com.mysql.jdbc.Driver");
-            InputStream in = getClass().getResourceAsStream("/password.txt");
-            String[] info = new BufferedReader(new InputStreamReader(in)).lines().toArray(String[]::new);
+            String[] info;
+            if (testAsJAR) {
+                InputStream in = getClass().getResourceAsStream("/password.txt");
+                info = new BufferedReader(new InputStreamReader(in)).lines().toArray(String[]::new);
+            } else
+                info = new String(Files.readAllBytes(Paths.get("res/password.txt"))).split("\n");
             connection = DriverManager.getConnection("jdbc:mysql://" + info[0] + ":3306/notenverwaltung", info[1], info[2]);
             HttpServer server = HttpServer.create(new InetSocketAddress(1337), 0);
             server.createContext("/", new Handler());
@@ -43,7 +52,7 @@ public class Main {
         }
     }
 
-    private static class Handler implements HttpHandler {
+    private class Handler implements HttpHandler {
 
         @Override
         public void handle(HttpExchange exchange) throws IOException {
@@ -53,7 +62,7 @@ public class Main {
 
 
 
-    private static class LoginHandler implements HttpHandler {
+    private class LoginHandler implements HttpHandler {
 
         @Override
         public void handle(HttpExchange exchange) throws IOException {
@@ -65,7 +74,8 @@ public class Main {
             try {
                 PreparedStatement statement = connection.prepareStatement("SELECT * FROM users WHERE email=? AND pwd=?");
                 statement.setString(1, username);
-                statement.setString(2, password);
+                statement.setString(2, hash(password));
+                System.out.println(hash(password));
                 ResultSet resultSet = statement.executeQuery();
                 int size = 0;
                 while (resultSet.next()) size++;
@@ -77,7 +87,7 @@ public class Main {
                     write(responseObject.toJSONString(), 401, exchange);
                     System.out.println("out " + size);
                 } else {
-                    System.out.println("in");
+                    System.out.println("in " + size);
                     while (resultSet.next()) {
                         System.out.println("entered");
                         responseObject.put("name", resultSet.getString("name"));
@@ -95,7 +105,7 @@ public class Main {
 
     }
 
-    private static class NewUserHandler implements HttpHandler {
+    private class NewUserHandler implements HttpHandler {
 
         @Override
         public void handle(HttpExchange exchange) throws IOException {
@@ -107,6 +117,7 @@ public class Main {
                 ResultSet set = statement.executeQuery();
 
                 String name = map.get("name");
+                name = name.replace('+', ' ');
                 String password = map.get("password");
                 String group = map.get("groupId");
                 String email = map.get("email");
@@ -129,7 +140,7 @@ public class Main {
         }
     }
 
-    private static class GetGradesHandler implements HttpHandler {
+    private class GetGradesHandler implements HttpHandler {
 
         @Override
         public void handle(HttpExchange exchange) throws IOException {
@@ -159,7 +170,7 @@ public class Main {
         }
     }
 
-    private static class GetClassSubjectsHandler implements HttpHandler {
+    private class GetClassSubjectsHandler implements HttpHandler {
 
         @Override
         public void handle(HttpExchange exchange) throws IOException {
@@ -189,7 +200,7 @@ public class Main {
         }
     }
 
-    private static class GetSubjectsHandler implements HttpHandler {
+    private class GetSubjectsHandler implements HttpHandler {
 
         @Override
         public void handle(HttpExchange exchange) throws IOException {
@@ -210,7 +221,7 @@ public class Main {
         }
     }
 
-    private static class GetUserDataHandler implements HttpHandler {
+    private class GetUserDataHandler implements HttpHandler {
 
         @Override
         public void handle(HttpExchange exchange) throws IOException {
@@ -234,7 +245,7 @@ public class Main {
         }
     }
 
-    private static class UpdateGradesHandler implements HttpHandler {
+    private class UpdateGradesHandler implements HttpHandler {
 
         @Override
         public void handle(HttpExchange exchange) throws IOException {
@@ -267,7 +278,7 @@ public class Main {
 
     }
 
-    private static class GetClassDataHandler implements HttpHandler {
+    private class GetClassDataHandler implements HttpHandler {
 
         @Override
         public void handle(HttpExchange exchange) throws IOException {
@@ -291,16 +302,16 @@ public class Main {
         }
     }
 
-    private static void write(String text, int responseCode, HttpExchange e) throws IOException {
+    private void write(String text, int responseCode, HttpExchange e) throws IOException {
         e.getResponseHeaders().add("Content-Type", "application/json; charset=utf-8");
-        e.getResponseHeaders().add("Access-Control-Allow-Origin", "http://localhost:4200");
+        e.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
         e.sendResponseHeaders(responseCode, 0);
         OutputStream os = e.getResponseBody();
         os.write(text.getBytes("UTF-8"));
         os.close();
     }
 
-    private static HashMap<String, String> queryToMap(String s){
+    private HashMap<String, String> queryToMap(String s){
         LinkedHashMap<String, String> map = new LinkedHashMap<>();
         String[] e = s.split("&");
         for(String el : e){
@@ -309,7 +320,7 @@ public class Main {
         return map;
     }
 
-    private static boolean exists(ResultSet set) {
+    private boolean exists(ResultSet set) {
         try {
             return set.next();
         } catch (SQLException e) {
@@ -318,7 +329,22 @@ public class Main {
         }
     }
 
-    private static boolean nullOrEmpty(String string) {
+    private boolean nullOrEmpty(String string) {
         return string == null || string.equals("");
+    }
+
+    private String hash(String text) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-512");
+            byte[] array = digest.digest(text.getBytes("UTF-8"));
+
+            StringBuilder buffer = new StringBuilder();
+            for (byte anArray : array)
+                buffer.append(Integer.toString((anArray & 0xff) + 0x100, 16).substring(1));
+            return buffer.toString();
+        } catch (NoSuchAlgorithmException | UnsupportedEncodingException e) {
+            e.printStackTrace();
+        }
+        return "";
     }
 }
