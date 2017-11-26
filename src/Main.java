@@ -161,23 +161,24 @@ public class Main {
 								ResultSet resultSetMeta = statementMeta.executeQuery();
 
                 //Result to JSONObject
-                JSONObject grades = new JSONObject();
+                JSONArray array = new JSONArray();
                 while (resultSetMeta.next() && resultSetGrade.next()) {
 										JSONObject grade = new JSONObject();
 										grade.put("grade", resultSetGrade.getString("val"));
 										grade.put("datum", resultSetMeta.getString("datum"));
 										grade.put("subject", resultSetMeta.getString("fachId"));
-										grades.put("Test " + resultSetGrade.getString("testId"), grade);
+										array.add(grade);
                 }
 
-                if (!grades.isEmpty()) {
+                if (!array.isEmpty()) {
                     /*Structure:
-                    	TestId:
+                        Array [
                     		datum,
                     		subject,
                     		grade
+                        ]
                      */
-                    write(grades.toJSONString(), 200, exchange);
+                    write(array.toJSONString(), 200, exchange);
                 } else {
                     write("{\"error\": \"Nothing to see here\"}", 404, exchange);
                 }
