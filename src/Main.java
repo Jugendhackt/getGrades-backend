@@ -101,7 +101,7 @@ public class Main {
             catch (SQLException e){
                 e.printStackTrace();
             } catch (NullPointerException e) {
-                write("{\"error\": \"Es wurden nicht alle Felder ausgefüllt\"}", 400, exchange);
+                write("{\"error\": \"Es wurden nicht alle Felder ausgefüllt.\"}", 400, exchange);
             }
         }
 
@@ -134,7 +134,7 @@ public class Main {
                     insertStatement.setString(3, group);
                     insertStatement.setString(4, email);
                     insertStatement.executeUpdate();
-                    write("{\"result\": \"Der Benutzer mit der E-Mail-Adresse " + map.get("email") + " wird erstellt\"}", 201, exchange);
+                    write("{\"result\": \"Der Benutzer mit der E-Mail-Adresse " + map.get("email") + " wird erstellt\", \"response\": true}", 201, exchange);
                 }
             } catch (SQLException e) {
                 e.printStackTrace();
@@ -154,7 +154,7 @@ public class Main {
 							PreparedStatement statementGrade = connection.prepareStatement("SELECT val, testId FROM grades WHERE studentId=?");
 							statementGrade.setString(1, studentId);
 							ResultSet resultSetGrade = statementGrade.executeQuery();
-            	
+
                 //SQL Query (Meta) for fachId & datum
                 PreparedStatement statementMeta = connection.prepareStatement("SELECT fachId, datum FROM tests LEFT JOIN grades ON grades.testId = tests.id WHERE studentId=?");
                 statementMeta.setString(1, studentId);
@@ -179,12 +179,12 @@ public class Main {
                      */
                     write(grades.toJSONString(), 200, exchange);
                 } else {
-                    write("{\"response\": \"Nothing to see here\"}", 404, exchange);
+                    write("{\"error\": \"Nothing to see here\"}", 404, exchange);
                 }
             } catch (SQLException e) {
                 e.printStackTrace();
             } catch (NullPointerException e) {
-                write("{\"response\": \"Keine studentId\"}", 400, exchange);
+                write("{\"error\": \"Keine studentId\"}", 400, exchange);
             }
 
         }
@@ -210,14 +210,17 @@ public class Main {
 
                 if (!subjects.isEmpty()) {
                     //Structure: Array mit Fächern der Klasse
+                    JSONObject obj = new JSONObject();
+                    obj.put("response", true);
+                    subjects.add(obj);
                     write(subjects.toJSONString(), 200, exchange);
                 } else {
-                    write("[\"Nothing to see here\"]", 404, exchange);
+                    write("{\"error\": \"Nothing to see here\"}", 404, exchange);
                 }
             } catch (SQLException sql) {
                 sql.printStackTrace();
             } catch (NullPointerException e) {
-                write("[\"Nothing to see here\"]", 404, exchange);
+                write("{\"error\": \"Nothing to see here\"}", 404, exchange);
             }
         }
     }
@@ -288,14 +291,17 @@ public class Main {
                 statement.setString(3, gradeID);
                 int result = statement.executeUpdate();
 
-                obj.put("Success", result>0);
+                if (result>0) {
+                    obj.put("response", true);
+                } else
+                    obj.put("response", false);
 
                 write(obj.toJSONString(), 200, exchange);
             }
             catch (SQLException e){
                 e.printStackTrace();
             } catch (NullPointerException e) {
-                write("{\"error\": \"Es wurden nicht alle Felder ausgefüllt\"}", 400, exchange);
+                write("{\"error\": \"Es wurden nicht alle Felder ausgefüllt.\"}", 400, exchange);
             }
         }
 
