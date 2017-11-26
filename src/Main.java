@@ -147,9 +147,9 @@ public class Main {
     private class GetGradesHandler implements HttpHandler {
 
         @Override
-        public void handle(HttpExchange exchange) throws IOException {
-            String studentId = queryToMap(exchange.getRequestURI().getQuery()).get("studentId");
+        public void handle(HttpExchange exchange)  {
             try {
+                String studentId = queryToMap(exchange.getRequestURI().getQuery()).get("studentId");
             		//SQL Query (Grade) for val & testId
 							PreparedStatement statementGrade = connection.prepareStatement("SELECT val, testId FROM grades WHERE studentId=?");
 							statementGrade.setString(1, studentId);
@@ -250,7 +250,7 @@ public class Main {
     private class GetUserDataHandler implements HttpHandler {
 
         @Override
-        public void handle(HttpExchange exchange) throws IOException {
+        public void handle(HttpExchange exchange) {
             StringBuilder columnValue = new StringBuilder();
 
             try {
@@ -312,7 +312,7 @@ public class Main {
     private class GetClassDataHandler implements HttpHandler {
 
         @Override
-        public void handle(HttpExchange exchange) throws IOException {
+        public void handle(HttpExchange exchange) {
             StringBuilder columnValue = new StringBuilder();
 
             try {
