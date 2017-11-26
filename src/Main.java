@@ -11,6 +11,7 @@ import java.nio.file.Paths;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.sql.*;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 
@@ -33,15 +34,22 @@ public class Main {
             } else
                 info = new String(Files.readAllBytes(Paths.get("res/password.txt"))).split("\n");
             connection = DriverManager.getConnection("jdbc:mysql://" + info[0] + ":3306/notenverwaltung", info[1], info[2]);
-            HttpServer server = HttpServer.create(new InetSocketAddress(1337), 0);
+            HttpServer server = HttpServer.create(new InetSocketAddress(testAsJAR ? 1337 : 4200), 0);
             server.createContext("/", new Handler());
             server.createContext("/login", new LoginHandler());
+
             server.createContext("/newuser", new NewUserHandler());
+
             server.createContext("/getgrades", new GetGradesHandler());
+
             server.createContext("/getsubjects", new GetSubjectsHandler());
+
             server.createContext("/getuserdata", new GetUserDataHandler());
+
             server.createContext("/getclassdata", new GetClassDataHandler());
+
             server.createContext("/getclasssubjects", new GetClassSubjectsHandler());
+
             server.createContext("/updategrades", new UpdateGradesHandler());
             System.out.println("Server wird gestartet...");
             server.setExecutor(null);
@@ -55,7 +63,7 @@ public class Main {
     private class Handler implements HttpHandler {
 
         @Override
-        public void handle(HttpExchange exchange) throws IOException {
+        public void handle(HttpExchange exchange) {
             write("{\"response\": \"Wohoo!\"}", 200, exchange);
         }
     }
@@ -65,13 +73,12 @@ public class Main {
     private class LoginHandler implements HttpHandler {
 
         @Override
-        public void handle(HttpExchange exchange) throws IOException {
-            String query = exchange.getRequestURI().getQuery();
-            HashMap<String, String> userdata = queryToMap(query);
-            String username = userdata.get("username");
-            String password = userdata.get("password");
-
+        public void handle(HttpExchange exchange) {
             try {
+                String query = exchange.getRequestURI().getQuery();
+                HashMap<String, String> userdata = queryToMap(query);
+                String username = userdata.get("username");
+                String password = userdata.get("password");
                 PreparedStatement statement = connection.prepareStatement("SELECT * FROM users WHERE email=? AND pwd=?");
                 statement.setString(1, username);
                 statement.setString(2, hash(password));
@@ -91,8 +98,10 @@ public class Main {
                     write(responseObject.toJSONString(), 200, exchange);
                 }
             }
-            catch (Exception e){
+            catch (SQLException e){
                 e.printStackTrace();
+            } catch (NullPointerException e) {
+                write("{\"error\": \"Es wurden nicht alle Felder ausgefüllt\"}", 400, exchange);
             }
         }
 
@@ -101,10 +110,10 @@ public class Main {
     private class NewUserHandler implements HttpHandler {
 
         @Override
-        public void handle(HttpExchange exchange) throws IOException {
-            String query = exchange.getRequestURI().getQuery();
-            HashMap<String, String> map = queryToMap(query);
+        public void handle(HttpExchange exchange) {
             try {
+                String query = exchange.getRequestURI().getQuery();
+                HashMap<String, String> map = queryToMap(query);
                 PreparedStatement statement = connection.prepareStatement("SELECT email FROM users WHERE email = ?");
                 statement.setString(1, map.get("email"));
                 ResultSet set = statement.executeQuery();
@@ -116,7 +125,7 @@ public class Main {
                 String email = map.get("email");
                 if (exists(set)) {
                     write("{\"error\": \"Dieser Benutzer ist schon vorhanden\"}", 401, exchange);
-                } else if (nullOrEmpty(name) || nullOrEmpty(password) || nullOrEmpty(group) || nullOrEmpty(email)) {
+                } else if (nullOrEmpty(name) || nullOrEmpty(password) || nullOrEmpty(group) || nullOrEmpty(email) || map.isEmpty()) {
                     write("{\"error\": \"Es wurden nicht alle Felder ausgefüllt\"}", 400, exchange);
                 } else {
                     PreparedStatement insertStatement = connection.prepareStatement("INSERT INTO users VALUES (DEFAULT, ?, ?, ?, ?)");
@@ -129,6 +138,8 @@ public class Main {
                 }
             } catch (SQLException e) {
                 e.printStackTrace();
+            } catch (NullPointerException e) {
+                write("{\"error\": \"Es wurden nicht alle Felder ausgefüllt\"}", 400, exchange);
             }
         }
     }
@@ -136,9 +147,10 @@ public class Main {
     private class GetGradesHandler implements HttpHandler {
 
         @Override
-        public void handle(HttpExchange exchange) throws IOException {
-            String studentId = queryToMap(exchange.getRequestURI().getQuery()).get("studentId");
+        public void handle(HttpExchange exchange) {
             try {
+                String studentId = queryToMap(exchange.getRequestURI().getQuery()).get("studentId");
+
                 //SQL Query
                 PreparedStatement statement = connection.prepareStatement("SELECT val, testId FROM grades WHERE studentId=?");
                 statement.setString(1, studentId);
@@ -153,13 +165,13 @@ public class Main {
                 if (!grades.isEmpty()) {
                     //Structure: TestId, Note vom Test
                     write(grades.toJSONString(), 200, exchange);
-                } else if (nullOrEmpty(studentId)) {
-                    write("{\"response\": \"Keine studentId angegeben\"}", 400, exchange);
                 } else {
                     write("{\"response\": \"Nothing to see here\"}", 404, exchange);
                 }
             } catch (SQLException e) {
                 e.printStackTrace();
+            } catch (NullPointerException e) {
+                write("{\"response\": \"Keine studentId\"}", 400, exchange);
             }
 
         }
@@ -168,9 +180,9 @@ public class Main {
     private class GetClassSubjectsHandler implements HttpHandler {
 
         @Override
-        public void handle(HttpExchange exchange) throws IOException {
-            String classId = queryToMap(exchange.getRequestURI().getQuery()).get("classId");
+        public void handle(HttpExchange exchange) {
             try {
+                String classId = queryToMap(exchange.getRequestURI().getQuery()).get("classId");
                 //httpquery: ...?classId=class
                 //Result to JSONObject
                 PreparedStatement statement = connection.prepareStatement("SELECT subjects.name FROM relationshipsTeacher LEFT JOIN subjects ON relationshipsTeacher.fachId = subjects.id WHERE klassenId = ?");
@@ -191,6 +203,8 @@ public class Main {
                 }
             } catch (SQLException sql) {
                 sql.printStackTrace();
+            } catch (NullPointerException e) {
+                write("[\"Nothing to see here\"]", 404, exchange);
             }
         }
     }
@@ -198,7 +212,7 @@ public class Main {
     private class GetSubjectsHandler implements HttpHandler {
 
         @Override
-        public void handle(HttpExchange exchange) throws IOException {
+        public void handle(HttpExchange exchange) {
             try {
                 PreparedStatement statement = connection.prepareStatement("SELECT name FROM subjects");
                 ResultSet set = statement.executeQuery();
@@ -243,14 +257,14 @@ public class Main {
     private class UpdateGradesHandler implements HttpHandler {
 
         @Override
-        public void handle(HttpExchange exchange) throws IOException {
-            String query = exchange.getRequestURI().getQuery();
-            HashMap<String, String> data = queryToMap(query);
-            String gradeID = data.get("gradeId");
-            String teacherID = data.get("teacherId");
-            String value = data.get("value");
-            JSONObject obj = new JSONObject();
+        public void handle(HttpExchange exchange) {
             try {
+                String query = exchange.getRequestURI().getQuery();
+                HashMap<String, String> data = queryToMap(query);
+                String gradeID = data.get("gradeId");
+                String teacherID = data.get("teacherId");
+                String value = data.get("value");
+                JSONObject obj = new JSONObject();
                 PreparedStatement statement = connection.prepareStatement("UPDATE grades " +
                         "LEFT JOIN tests ON grades.testId=tests.Id " +
                         "LEFT JOIN users ON tests.lehrerId = users.id " +
@@ -265,8 +279,10 @@ public class Main {
 
                 write(obj.toJSONString(), 200, exchange);
             }
-            catch (Exception e){
+            catch (SQLException e){
                 e.printStackTrace();
+            } catch (NullPointerException e) {
+                write("{\"error\": \"Es wurden nicht alle Felder ausgefüllt\"}", 400, exchange);
             }
         }
 
@@ -297,13 +313,17 @@ public class Main {
         }
     }
 
-    private void write(String text, int responseCode, HttpExchange e) throws IOException {
-        e.getResponseHeaders().add("Content-Type", "application/json; charset=utf-8");
-        e.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
-        e.sendResponseHeaders(responseCode, 0);
-        OutputStream os = e.getResponseBody();
-        os.write(text.getBytes("UTF-8"));
-        os.close();
+    private void write(String text, int responseCode, HttpExchange e) {
+        try {
+            e.getResponseHeaders().add("Content-Type", "application/json; charset=utf-8");
+            e.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
+            e.sendResponseHeaders(responseCode, 0);
+            OutputStream os = e.getResponseBody();
+            os.write(text.getBytes("UTF-8"));
+            os.close();
+        } catch (IOException exception) {
+            exception.printStackTrace();
+        }
     }
 
     private HashMap<String, String> queryToMap(String s){
