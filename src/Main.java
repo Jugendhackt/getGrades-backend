@@ -84,7 +84,6 @@ public class Main {
                     write(responseObject.toJSONString(), 401, exchange);
                 } else {
                     while (resultSet.next()){
-                        System.out.println("entered");
                         responseObject.put("name", resultSet.getString("name"));
                         responseObject.put("groupId", resultSet.getString("groupId"));
                         responseObject.put("response", true);
@@ -154,8 +153,10 @@ public class Main {
                 if (!grades.isEmpty()) {
                     //Structure: TestId, Note vom Test
                     write(grades.toJSONString(), 200, exchange);
+                } else if (nullOrEmpty(studentId)) {
+                    write("{\"response\": \"Keine studentId angegeben\"}", 400, exchange);
                 } else {
-                    write("{\"response:Nothing to see here\"]", 404, exchange);
+                    write("{\"response\": \"Nothing to see here\"}", 404, exchange);
                 }
             } catch (SQLException e) {
                 e.printStackTrace();
